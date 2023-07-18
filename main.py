@@ -37,7 +37,7 @@ if __name__ == "__main__":
     Syslog_d = s0 + "Syslog" + s1
     Winlog_d = s0 + "Winlog" + s1
 
-    Str = [IPflow_d]#, Syslog_d, Winlog_d]
+    Str = [Winlog_d]#[IPflow_d, Syslog_d, Winlog_d]
     # Create multiple threads
 
     lock = threading.Lock()
@@ -49,9 +49,9 @@ if __name__ == "__main__":
         t.start()
 
     
-    for s in Str:
-        while t.is_alive:
-            loading(s)
+    #for s in Str:
+    #    while t.is_alive:
+    #        pass #loading(s)
 
     # Wait for all threads to finish
     for t in threads:
