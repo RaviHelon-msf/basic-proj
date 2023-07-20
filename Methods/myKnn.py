@@ -9,8 +9,9 @@ class KNN:
         self.k = k
         self.distance = distance
 
-    def fit(self, X, Y):
-        self.train_X = X
+    def fit(self, X, Y, normalization = max):
+        self.norm = [normalization(x) for x in np.transpose(X)]
+        self.train_X = X/self.norm
         self.train_Y = Y
 
     def predict(self, X):
@@ -18,7 +19,7 @@ class KNN:
         return np.array(y)
 
     def _predict(self, x):
-        distances = [self.distance(x,xtrain) for xtrain in self.train_X]
+        distances = [self.distance(x/self.norm,xtrain) for xtrain in self.train_X]
         k_ind = np.argsort(distances)[0:self.k]
         y = Counter(self.train_Y[k_ind]).most_common(1)
         return y[0][0]
@@ -34,7 +35,7 @@ if __name__ == "__main__":
 
     iris = datasets.load_iris()
     X, Y = iris.data, iris.target
-
+    
     X_train, X_test, Y_train, Y_test = train_test_split(
         X, Y, test_size=0.2, random_state=1234
     )
