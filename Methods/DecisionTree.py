@@ -1,102 +1,131 @@
 import numpy as np
 from collections import Counter
 
-name = 1
 
 def entropy(Y):
     E = 0
     for y in np.unique(Y):
         p = np.count_nonzero(Y==y)/len(Y)
         if p>0:
-            E -= p*np.log(p)
+            E -= p*np.log2(p)
     return E
 
 class Node:
     def __init__(self,feat = (None, None),leftNode = None, rightNode = None,*,Value = None):
-        if Value is not None:
-            self.Value = Value
-        else:
-            self.feature, self.threshold = feat
-            self.left = leftNode
-            self.right = rightNode
-            self.Value = None
-        
-        global name 
-        self.name = name
-        name = name+1
+        #print(f"Feature {feat} and Value {Value}")
+        self.feature, self.threshold = feat
+        self.left = leftNode
+        self.right = rightNode
+        self.Value = Value
 
     def value(self, x):
+        #print(x)
         if self.Value is not None:
-            print(f"Node: {self.name}, with Value {self.Value}")
             return self.Value
-        else:
-            print(f"Node: {self.name}, with feature {self.feature} and Threshold {self.threshold}, for X = {x}")
-        
+        else:            
             if x[self.feature] > self.threshold:
-                print("right")
                 return self.right.value(x)
             else:
-                print("left")
                 return self.left.value(x)
 
 class Tree:
-    def __init__(self,minSplit = 2, maxDepth = 100,numFeatures = None):
+    def __init__(self,minSplit = 2, maxDepth = 100,numFeatures = None, min_info_gain = 0.01):
         self.minSplit = minSplit
         self.max_depth = maxDepth
         self.num_feat = numFeatures
+        self.min_info_gain = min_info_gain
 
     def fit(self, X, Y):
+        X = np.array(X)
+        Y = np.array(Y)
         num_features = X.shape[1]
         self.num_feat = num_features if not self.num_feat else min(self.num_feat,num_features)
-
-        self.thresholds = []
-
-        y_ = np.unique(Y)
-        num_th_max = np.floor(self.max_depth/self.num_feat)
-
-        for idx in range(self.num_feat):
-            X_ = np.unique(X[:,idx])
-            
-            if len(X_)>num_th_max:
-                X_ = np.linspace(np.min(X_),np.max(X_),num_th_max)
-            
-            for x in X_:
-                self.thresholds.append((idx,x))
         
-        self.root = self._call_Node(X,Y, 1)
+        self.root = self._call_Node(X,Y)
 
-    def _call_Node(self,X, Y,depth):
-        if depth >= self.max_depth or len(np.unique(Y))==1 or X.shape[0]<=2:
+    def _call_Node(self,X, Y,depth=1, Info_gain=1):
+        if depth >= self.max_depth or len(np.unique(Y))==1 or X.shape[0]<=2 or Info_gain < self.min_info_gain:
             counter = Counter(Y)
-            value = counter.most_common(1)[0][0]
+            try:
+                value = counter.most_common(1)[0][0]
+            except IndexError:
+                print("Error")
+                return Node(Value = 0)
+            print(value)
             return Node(Value=value)
 
+        E = entropy(Y)
+        Igain = 0 
 
-        best = (self.thresholds[1])
-        E = 2
-        idpop = 1
+        for idx, x in enumerate(X.T):
+            Em = E
+            u = np.unique(x)
+            if len(u) ==2 :
+                th = 0.5*u[0]+0.5*u[1]
 
-        for id, f in enumerate(self.thresholds):
-            idx, th = f
-            idth = np.where(X[:,idx]>th,1,0)
-            E_ = entropy(Y[idth])
-            idth = np.where(idth,0,1)
-            _E = entropy(Y[idth])
-            Em = 0.5*(_E+E_)
-            print(Em)
+                _idl = np.where(x<=th)
+                _idr = np.where(x>th)
+                
+                w = len(_idl)/len(x)
+                Em = w*entropy(Y[_idl]) + (1 - w)*entropy(Y[_idr])
+                
+            elif len(u) > 2:
+                Em, _idl, _idr, th = self.best_th(x,Y)
+
+            I = E - Em
+            if I > Igain:
+                #print(f"information gain: {I}")
+                idl = _idl
+                idr = _idr
+                feat = idx
+                threshold = th
+                Igain = I
+
+
+        #print(f"finally, the selected is Feature{feat} with the th of {threshold:.2f} and I {Igain}")
+        #print(idl)
+        #print(X)
+        Xl = np.array(X[idl[0]])
+        Yl = np.array(Y[idl[0]])
+        for id in idl[1:]:            
+            Xl = np.append(Xl,X[id],axis=0)
+            np.append(Yl,Y[id])
+        Xl[:,feat] = 0
+        
+
+        Xr = np.array(X[idr[0]])
+        Yr = np.array(Y[idr[0]])
+        for id in idr[1:]:            
+            Xr = np.append(Xr,X[id],axis=0)
+            
+            np.append(Yr,Y[id])
+        Xr[:,feat] = 0
+        
+        return Node((feat,threshold),self._call_Node(Xl,Yl,depth+1, Igain), self._call_Node(Xr,Yr,depth+1, Igain))
+
+    def best_th(self, x,Y):
+        X_ = np.linspace(np.min(x),np.max(x))[1:-2]
+        E = 1
+
+
+        for th in X_:
+            _idl = np.where(x<=th)
+            _idr = np.where(x>th)
+             
+            w = len(_idl)/len(x)
+            Em = w*entropy(Y[_idl]) + (1 - w)*entropy(Y[_idr])
+
+            #print(f"Entropy {Em:.2f} for the {th:.2f}:  {np.unique(Y[_idl])} and {np.unique(Y[_idr])}")
+
             if Em < E:
-                best = (idx, th)
+                #print("Selected")
+                idl = _idl
+                idr = _idr
+                threshold = th
                 E = Em
-                idpop = id
-
-        idx, th = best
-
-        self.thresholds.pop(idpop)
-        idth_ = np.where(X[:,idx]>th,1,0)
-        _idth = np.where(idth_,0,1)
-
-        return Node((idx,th),self._call_Node(X[_idth],Y[_idth],depth+1), self._call_Node(X[idth_],Y[idth_],depth+1))
-
+        #print("Returned")
+        return E, idl, idr, threshold
+    
     def predict(self, X):
         y = [self._predict(x) for x in X]
         return np.array(y)
