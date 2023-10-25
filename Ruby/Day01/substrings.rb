@@ -3,15 +3,12 @@ def substrings (string = 'below how', dictionary= ['below', 'low', 'how'])
     words = string.split
 
     dictionary.each do |word|
-        count = words.count {|str| str.include?(word)}
+        count = words.count { |str| str.include?(word)}
         result[word] = count if count > 0
     end
 
     result
 end
-
-
-
 
 puts substrings
 
