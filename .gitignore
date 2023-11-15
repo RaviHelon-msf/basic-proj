@@ -4,6 +4,9 @@
 /Ruby/Day03/output/*
 /Ruby/Day03/output
 
+.csv
+.txt
+
 sshid
 sshid.pub
 # Byte-compiled / optimized / DLL files
