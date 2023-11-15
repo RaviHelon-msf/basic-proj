@@ -4,8 +4,8 @@
 /Ruby/Day03/output/*
 /Ruby/Day03/output
 
-.csv
-.txt
+*.csv
+*.txt
 
 sshid
 sshid.pub
